@@ -1,0 +1,141 @@
+# =====================
+
+# Python / Django Backend
+
+# =====================
+
+config/notes.txt
+
+**pycache**/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+db.sqlite3
+
+# Virtual Environment
+
+venv/
+env/
+ENV/
+
+# Environment variables
+
+.env
+.env.*
+!.env.example
+
+# Django specific
+
+*.log
+media/
+staticfiles/
+
+# Migrations (optional - uncomment if needed)
+
+# */migrations/*
+
+# !*/migrations/**init**.py
+
+# =====================
+
+# Celery / Async
+
+# =====================
+
+celerybeat-schedule
+celerybeat.pid
+
+# =====================
+
+# Testing / Coverage
+
+# =====================
+
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# =====================
+
+# Type checking / Lint
+
+# =====================
+
+.mypy_cache/
+.dmypy.json
+
+# =====================
+
+# Node / React Frontend
+
+# =====================
+
+node_modules/
+dist/
+build/
+
+# React environment files
+
+.env.local
+.env.development.local
+.env.production.local
+
+# =====================
+
+# Logs
+
+# =====================
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =====================
+
+# OS Files
+
+# =====================
+
+.DS_Store
+Thumbs.db
+
+# =====================
+
+# IDE / Editor
+
+# =====================
+
+.vscode/
+.idea/
+
+# =====================
+
+# Secrets / Security
+
+# =====================
+
+*.pem
+*.key
+*.crt
+secrets.json
+
+# =====================
+
+# Docker (if used)
+
+# =====================
+
+docker-compose.override.yml
+*.env.docker
+
+# =====================
+
+# Misc
+
+# =====================
+
+*.swp
+*.swo
