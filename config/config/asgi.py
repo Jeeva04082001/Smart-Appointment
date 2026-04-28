@@ -12,6 +12,7 @@ from channels.routing import ProtocolTypeRouter,URLRouter
 from django.core.asgi import get_asgi_application
 from channels.auth import AuthMiddlewareStack
 import queue_management.routing
+import appointments.routing
 
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
@@ -25,7 +26,8 @@ application = ProtocolTypeRouter({
 
     "websocket": AuthMiddlewareStack(
         URLRouter(
-            queue_management.routing.websocket_urlpatterns
+            queue_management.routing.websocket_urlpatterns + 
+            appointments.routing.websocket_urlpatterns
         )
     ),
 

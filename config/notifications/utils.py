@@ -1,17 +1,18 @@
 from django.core.mail import send_mail
 from twilio.rest import Client
+import os
+from django.conf import settings
 
 def send_appointment_email(to_email,message):
     send_mail(
         subject="Appointment Confiramtion",
         message=message,
-        from_email="jeevae3112@gmail.com",
+        from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[to_email],
         fail_silently=True,
     )
 
-import os
-from twilio.rest import Client
+
 
 def send_sms(phone, message):
     print("📱 SMS FUNCTION CALLED")

@@ -23,3 +23,13 @@ class QueueConsumer(AsyncWebsocketConsumer):
 
     async def send_queue_update(self, event):
         await self.send(text_data=json.dumps(event["data"]))
+
+
+
+
+
+
+
+
+
+        

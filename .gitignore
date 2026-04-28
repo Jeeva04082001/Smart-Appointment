@@ -139,3 +139,12 @@ docker-compose.override.yml
 
 *.swp
 *.swo
+
+
+# Archives
+*.zip
+*.tar
+*.gz
+*.bz2
+*.7z
+*.rar
