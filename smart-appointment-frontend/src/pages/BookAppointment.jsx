@@ -6,7 +6,7 @@ import { bookAppointments } from "../services/appointment";
 import { getAppointments } from "../services/appointment";
 import toast from "react-hot-toast";
 import DoctorQueue from "./DoctorQueue";
-
+import { getSlots } from "../services/slotService";
 
 function BookAppointment() {
   const navigate = useNavigate();
@@ -30,6 +30,7 @@ function BookAppointment() {
 
   const [doctors, setDoctors] = useState([]);
 
+
   console.log(doctors,'doctors');
   
   const [form, setForm] = useState({
@@ -42,6 +43,10 @@ function BookAppointment() {
     age: "",
     gender: "",
   });
+
+  const [slots, setSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   // 🔥 Fetch doctors
   useEffect(() => {
@@ -226,6 +231,83 @@ function BookAppointment() {
   }, [state]);
 
 
+  useEffect(() => {
+    if (form.doctor && form.date) {
+      fetchSlots();
+    }
+  }, [form.doctor, form.date]);
+
+  const fetchSlots = async () => {
+    try {
+      setLoadingSlots(true);
+      const res = await getSlots(form.doctor, form.date);
+      setSlots(res.data.slots);
+    } catch {
+      setSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const groupSlots = () => {
+  const morning = [];
+  const afternoon = [];
+  const evening = [];
+
+  slots.forEach((slot) => {
+    const hour = new Date(`1970-01-01 ${slot.time}`).getHours();
+
+      if (hour < 12) morning.push(slot);
+      else if (hour < 17) afternoon.push(slot);
+      else evening.push(slot);
+    });
+
+    return { morning, afternoon, evening };
+  };
+
+  const { morning, afternoon, evening } = groupSlots();
+
+
+ 
+
+  useEffect(() => {
+    if (!form.doctor) return;
+
+    const socket = new WebSocket(`ws://localhost:8000/ws/slots/${form.doctor}/`);
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setSlots(data.slots || data);
+    };
+
+    return () => socket.close();
+  }, [form.doctor]);
+
+  const SlotButton = ({ slot }) => {
+  const isFull = slot.available === 0;
+
+  return (
+    <button
+      type="button"
+      disabled={isFull}
+      onClick={() => {
+        setSelectedSlot(slot.time);
+        setForm(prev=>({...prev,time_slot: slot.time}))
+      }}
+      className={`
+        px-3 py-2 border rounded text-sm
+        ${isFull 
+          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+          : selectedSlot === slot.time
+          ? "bg-green-500 text-white"
+          : "bg-blue-50 text-blue-700 hover:bg-blue-100"}
+      `}
+    >
+      {slot.time}
+    </button>
+  );
+};
+
 
   return (
     <div className="flex gap-6 p-6">
@@ -320,6 +402,55 @@ function BookAppointment() {
             className="border p-2 w-full rounded"
             onChange={handleChange}
           />
+
+          {/* Loading */}
+          {!isAdmin && loadingSlots && (
+            <p className="text-gray-500">Loading slots...</p>
+          )}
+
+          {/* No slots */}
+          {!isAdmin && !loadingSlots && form.date && slots.length === 0 && (
+            <p className="text-gray-500">No slots available</p>
+          )}
+
+          {!isAdmin && slots.length > 0 && (
+            <div className="mt-4">
+
+              {morning.length > 0 && (
+                <>
+                  <h3 className="font-semibold">🌅 Morning</h3>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {morning.map((s, i) => (
+                      <SlotButton key={i} slot={s} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {afternoon.length > 0 && (
+                <>
+                  <h3 className="font-semibold">☀️ Afternoon</h3>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {afternoon.map((s, i) => (
+                      <SlotButton key={i} slot={s} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {evening.length > 0 && (
+                <>
+                  <h3 className="font-semibold">🌙 Evening</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {evening.map((s, i) => (
+                      <SlotButton key={i} slot={s} />
+                    ))}
+                  </div>
+                </>
+              )}
+
+            </div>
+          )}
 
           <input
             type="time"

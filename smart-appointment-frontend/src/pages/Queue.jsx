@@ -61,12 +61,29 @@ function Queue() {
     }
   }, []);
 
-  useEffect(() => {
-    if (currentToken && currentToken !== lastCalledToken) {
-      speakToken(currentToken, doctorName);  // 🔥 announce current serving
-      setLastCalledToken(currentToken);
-    }
-  }, [currentToken]);
+  // useEffect(() => {
+  //   if (currentToken && currentToken !== lastCalledToken) {
+  //     speakToken(currentToken, doctorName);  // 🔥 announce current serving
+  //     setLastCalledToken(currentToken);
+  //   }
+  // }, [currentToken]);
+
+
+  // useEffect(() => {
+  //   if (
+  //     pageLoaded &&
+  //     currentToken === tokenNumber &&
+  //     !notified
+  //   ) {
+  //     toast.success(`🔔 It's your turn for ${doctorName}!`);
+
+  //     playBeep();
+
+  //     speakToken(tokenNumber, doctorName);
+
+  //     setNotified(true);
+  //   }
+  // }, [currentToken, notified, pageLoaded]);
 
 
   const fetchAppointmentData = async () => {
@@ -77,7 +94,8 @@ function Queue() {
 
       const active = res.data
       .filter((a) => {
-          if (a.status !== "BOOKED") return false;
+            // if (!["BOOKED", "ARRIVED", "IN_CONSULTATION"].includes(a.status)) return false;
+            if (a.status === "COMPLETED" || a.status === "CANCELLED") return false;
 
             const apptTime = new Date(`${a.date}T${a.time_slot}`);
             return apptTime <= now; // 🔥 ONLY CURRENT OR PAST (today active)
@@ -354,10 +372,10 @@ function Queue() {
     if (preNotified) return;
 
     // 🔥 5 mins before turn
-    if (patientsAhead === 1) {
+    if (patientsAhead === 1  && !preNotified) {
       // toast("⏳ Your turn is coming in ~5 minutes");
 
-      toast.success("⏳ Your turn is coming in ~5 minutes", {
+      toast.success("⏳ Your turn is coming in ~15 minutes", {
         duration: 4000,
       });
 
@@ -450,7 +468,7 @@ function Queue() {
 
       {currentToken === tokenNumber && (
         <div className="bg-green-500 text-white p-3 rounded text-center mb-4 animate-pulse">
-          🔔 It's your turn!
+          🔔 You are in consultation
         </div>
       )}
 

@@ -5,7 +5,7 @@ import API from "../api/api";
 import toast from "react-hot-toast";
 import { Clock, Calendar, Users, AlertCircle, CheckCircle, XCircle, ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import "react-calendar/dist/Calendar.css";
-import { bookAppointments } from "../services/appointment";
+import { bookAppointments,getAppointments } from "../services/appointment";
 
 import { useNavigate } from "react-router-dom";
 
@@ -16,6 +16,10 @@ const Slots = () => {
   const [selectedDoctor, setSelectedDoctor] = useState("");
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+
+  console.log(appointments,'appointments---');
+  
   const [loading, setLoading] = useState(false);
   const [leaves, setLeaves] = useState([]);
   const isLeave = leaves.some((l) => l.slice(0, 10) === date);
@@ -61,6 +65,15 @@ const Slots = () => {
   useEffect(() => {
     fetchDoctors();
   }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      const res = await getAppointments();
+      setAppointments(res.data);
+    } catch {
+      setAppointments([]);
+    }
+  };
 
   const fetchDoctors = async () => {
     const res = await getDoctors();
@@ -146,6 +159,44 @@ const Slots = () => {
     buildCalendarData();
   }, [buildCalendarData]);
 
+
+  useEffect(() => {
+    if (selectedDoctor && date) {
+      fetchAppointments();
+    }
+  }, [selectedDoctor, date]);
+
+
+  // const getBookedPatient = (time) => {
+  //   const match = appointments.find((a) => {
+  //     const apiTime = a.time_slot?.slice(0, 5); // "18:30:00" -> "18:30"
+
+  //     return (
+  //       a.date === date &&
+  //       apiTime === time
+  //     );
+  //   });
+
+  //   console.log("MATCH:", match);
+
+  //   return match?.patient_name || null;
+  // };
+
+  const getBookedPatient = (time) => {
+    const match = appointments.find((a) => {
+      const apiTime = a.time_slot?.substring(0, 5);
+
+      return (
+        a.date === date &&
+        apiTime === time &&
+        a.status === "BOOKED"
+      );
+    });
+
+    return match || null;
+  };
+
+
   // 🔥 CREATE AVAILABILITY
   const handleCreateAvailability = async () => {
     if (!form.doctor || !form.day || !form.start_time || !form.end_time) {
@@ -222,17 +273,17 @@ const Slots = () => {
     return doctors.find((d) => d.id === parseInt(id))?.doctor_name || "Unknown";
   };
 
-  const getSlotStatus = (slot) => {
-    if (slot.is_full) {
-      return { bg: "bg-red-50 border-red-200", text: "text-red-700", label: "Fully Booked", icon: "🔴" };
-    } else if (slot.is_almost_full) {
-      return { bg: "bg-yellow-50 border-yellow-200", text: "text-yellow-700", label: "Almost Full", icon: "🟡" };
-    } else if (slot.is_next) {
-      return { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", label: "Next Slot", icon: "🔵" };
-    } else {
-      return { bg: "bg-green-50 border-green-200", text: "text-green-700", label: "Available", icon: "🟢" };
-    }
-  };
+  // const getSlotStatus = (slot) => {
+  //   if (slot.is_full) {
+  //     return { bg: "bg-red-50 border-red-200", text: "text-red-700", label: "Fully Booked", icon: "🔴" };
+  //   } else if (slot.is_almost_full) {
+  //     return { bg: "bg-yellow-50 border-yellow-200", text: "text-yellow-700", label: "Almost Full", icon: "🟡" };
+  //   } else if (slot.is_next) {
+  //     return { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", label: "Next Slot", icon: "🔵" };
+  //   } else {
+  //     return { bg: "bg-green-50 border-green-200", text: "text-green-700", label: "Available", icon: "🟢" };
+  //   }
+  // };
 
   const fetchLeaves = async (doctorId) => {
     const res = await API.get(`/leaves/${doctorId}/`);
@@ -344,7 +395,7 @@ const Slots = () => {
 
       const dayData = calendarData[dateStr];
 
-      console.log(dayData,'dayData---');
+      // console.log(dayData,'dayData---');
       
       const isToday = dateStr === today;
     //   const isPast = d < new Date(today);
@@ -736,54 +787,55 @@ const Slots = () => {
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Available Time Slots</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {slots.map((slot, index) => {
-                    const status = getSlotStatus(slot);
+                    const isBooked = slot.available === 0;
+                    const booking  = getBookedPatient(slot.time);
+
                     return (
                       <div
                         key={index}
-                        className={`p-4 rounded-xl border-2 transition duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer ${status.bg}`}
+                        className={`
+                          p-4 rounded-xl border-2 text-center
+                          ${isBooked ? "bg-red-100 border-red-300" : "bg-green-100 border-green-300"}
+                        `}
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <span className="text-2xl font-bold text-gray-900">{slot.time}</span>
-                          <span className="text-2xl">{status.icon}</span>
-                        </div>
-                        <p className={`text-xs font-semibold uppercase tracking-wide mb-3 ${status.text}`}>
-                          {status.label}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                          <Users className="w-4 h-4" />
-                          {slot.available} {slot.available === 1 ? "spot" : "spots"} left
-                        </div>
+                        <div className="text-xl font-bold">{slot.time}</div>
 
-                        {/* Capacity Bar */}
-                        <div className="bg-gray-300 rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-300 ${
-                              slot.is_full
-                                ? "bg-red-500"
-                                : slot.is_almost_full
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
-                            }`}
-                            style={{
-                              width: `${slot.available === 0 ? 100 : Math.max(25, slot.available * 25)}%`,
-                            }}
-                          />
-                        </div>
+                        {isBooked ? (
+                          <>
+                            <p className="text-red-600 text-sm font-semibold">Booked</p>
+                            <div className="space-y-1 mt-1">
+                              <p className="text-gray-800 text-sm font-medium">
+                                {booking?.patient_name}
+                              </p>
 
-                        {/* Book Button */}
-                        <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-3 rounded-lg transition duration-200 text-sm shadow-sm"
-                         onClick={() => handleBooking(slot.time)}
-                        >
-                         
-                          Book Now
-                        </button>
+                              <p className="text-xs text-gray-600">
+                                Token: {booking?.token_number}
+                              </p>
+
+                              <p className="text-xs text-gray-600">
+                                📞 {booking?.patient_phone}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-green-600 text-sm font-semibold">Available</p>
+
+                            <button
+                              className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded"
+                              onClick={() => handleBooking(slot.time)}
+                            >
+                              Book
+                            </button>
+                          </>
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
                 {/* Slots Legend */}
-                <div className="mt-8 pt-8 border-t border-gray-200">
+                {/* <div className="mt-8 pt-8 border-t border-gray-200">
                   <h4 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">Slot Status Legend</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                     <div className="flex items-center gap-2">
@@ -803,7 +855,7 @@ const Slots = () => {
                       <span className="text-gray-700">Fully Booked</span>
                     </div>
                   </div>
-                </div>
+                </div> */}
               </div>
             ) : (
               <div className="py-12 text-center">

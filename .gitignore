@@ -33,9 +33,9 @@ staticfiles/
 
 # Migrations (optional - uncomment if needed)
 
-# */migrations/*
+*/migrations/*
 
-# !*/migrations/**init**.py
+!*/migrations/**init**.py
 
 # =====================
 
@@ -148,3 +148,5 @@ docker-compose.override.yml
 *.bz2
 *.7z
 *.rar
+
+notes.txt
