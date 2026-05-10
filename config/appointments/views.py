@@ -19,10 +19,13 @@ from accounts.models import User as CustomUser
 from calendar import monthrange
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q
+from django.utils.timezone import now
+from django.utils.dateparse import parse_date
 
 
 
-now = timezone.now()
+# now = timezone.now()
 
 
 # @api_view(['GET', 'POST'])
@@ -678,8 +681,10 @@ def get_slots(request, doctor_id):
     slots = sorted(slots, key=lambda x: x["time"])
 
     return Response({
+       
         "total_slots": len(slots),
-        "slots": slots
+        "slots": slots,
+        
     })
 
 
@@ -867,14 +872,30 @@ def book_appointment(request):
             gender=gender
         ).first()
 
-        if not patient:
-            patient=Patient.objects.create(
+        if patient:
+            # 🔥 Optional: update latest details
+            patient.name = name
+            patient.email = email
+            patient.age = age
+            patient.gender = gender
+            patient.save()
+        else:
+            patient = Patient.objects.create(
                 name=name,
                 phone=phone,
                 email=email,
                 age=age,
                 gender=gender
             )
+
+        # if not patient:
+        #     patient=Patient.objects.create(
+        #         name=name,
+        #         phone=phone,
+        #         email=email,
+        #         age=age,
+        #         gender=gender
+        #     )
        
 
 
@@ -1078,6 +1099,8 @@ def book_appointment(request):
             for q in queue_qs
         ]
 
+        
+
 
         async_to_sync(channel_layer.group_send)(
             f'queue_{doctor.id}',
@@ -1096,6 +1119,14 @@ def book_appointment(request):
                 "data": slots
             }
         )
+
+        async_to_sync(channel_layer.group_send)(
+            "dashboard",
+            {
+                "type": "dashboard_update"
+            }
+        )
+
 
 
     except Exception as e:
@@ -1178,7 +1209,8 @@ def complete_appointment(request, pk):
         return Response({"error": "Not found"}, status=404)
 
     apt.status = "COMPLETED"
-    # apt.is_serving = False
+    apt.is_serving = False
+    apt.is_emergency = False
     apt.save()
 
     # ✅ FIX: update queue instead of appointment
@@ -1212,47 +1244,159 @@ def mark_no_show(request, appointment_id):
 
     return Response({"message": "Marked as no-show"})
 
+
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def list_appointments(request):
+#     user = request.user
+
+#     queryset = Queue.objects.all()
+
+#     if user.role == "PATIENT":
+#         patient = Patient.objects.filter(user=user).first()
+
+#         if not patient:
+#             return Response({"error": "Patient not found"}, status=404)
+
+#         appointments = Appointment.objects.filter(patient=patient)
+
+#     elif user.role == "DOCTOR":
+#         # 🔥 get doctor's profile
+#         doctor = user.doctor_profile
+#         appointments = Appointment.objects.filter(doctor=doctor)
+#     else:  # ADMIN
+#         appointments = Appointment.objects.all()
+
+#     # else:
+#     #     patient = Patient.objects.filter(user=user).first()
+
+#     #     if not patient:
+#     #         return Response({"error": "Patient not found"}, status=404)
+        
+#     #     appointments = Appointment.objects.filter(patient=user)
+
+#     appointments = appointments.annotate(
+#         status_order=Case(
+#             When(status='BOOKED',then=Value(1)),
+#             When(status='COMPLETED',then=Value(2)),
+#             When(status='CANCELLED',then=Value(3)),
+#             default=Value(4),
+#             output_field=IntegerField(),
+#         )
+#     ).order_by('status_order', 'date','time_slot','-created_at')    
+
+#     return Response(AppointmentSerializer(appointments, many=True).data)
+
+
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def list_appointments(request):
+
     user = request.user
 
-    queryset = Queue.objects.all()
-
+    # ✅ STEP 1: BASE QUERYSET (ROLE)
     if user.role == "PATIENT":
         patient = Patient.objects.filter(user=user).first()
-
         if not patient:
             return Response({"error": "Patient not found"}, status=404)
 
         appointments = Appointment.objects.filter(patient=patient)
 
     elif user.role == "DOCTOR":
-        # 🔥 get doctor's profile
         doctor = user.doctor_profile
         appointments = Appointment.objects.filter(doctor=doctor)
+
     else:  # ADMIN
         appointments = Appointment.objects.all()
 
-    # else:
-    #     patient = Patient.objects.filter(user=user).first()
 
-    #     if not patient:
-    #         return Response({"error": "Patient not found"}, status=404)
-        
-    #     appointments = Appointment.objects.filter(patient=user)
+    # ✅ STEP 2: APPLY FILTERS
+    filter_type = request.GET.get("type")
+    date = request.GET.get("date")
+    from_date = request.GET.get("from")
+    to_date = request.GET.get("to")
+    status = request.GET.get("status")
+    doctor_id = request.GET.get("doctor")
+    search = request.GET.get("search")
 
+    if filter_type == "today":
+        appointments = appointments.filter(date=now().date())
+
+    elif date:
+        parsed_date = parse_date(date)
+        if parsed_date:
+            appointments = appointments.filter(date=parsed_date)
+
+    elif from_date and to_date:
+        parsed_from = parse_date(from_date)
+        parsed_to = parse_date(to_date)
+
+        if parsed_from and parsed_to:
+            appointments = appointments.filter(
+                date__range=[parsed_from, parsed_to]
+            )
+
+    if status:
+        appointments = appointments.filter(status=status)
+
+    if doctor_id and user.role == "ADMIN":
+        appointments = appointments.filter(doctor_id=doctor_id)    
+
+    if search:
+        appointments = appointments.filter(
+            Q(patient__name__icontains=search) |
+            Q(patient__phone__icontains=search)
+        )
+
+
+    # ✅ STEP 3: ORDERING
     appointments = appointments.annotate(
         status_order=Case(
-            When(status='BOOKED',then=Value(1)),
-            When(status='COMPLETED',then=Value(2)),
-            When(status='CANCELLED',then=Value(3)),
-            default=Value(4),
+            When(status='BOOKED', then=Value(1)),
+            When(status='ARRIVED', then=Value(2)),
+            When(status='NO_SHOW', then=Value(3)),
+            When(status='COMPLETED', then=Value(4)),
+            When(status='CANCELLED', then=Value(5)),
+            default=Value(6),
             output_field=IntegerField(),
         )
-    ).order_by('status_order', 'date','time_slot','-created_at')    
+    ).order_by('status_order', 'date', 'time_slot', '-created_at')
 
-    return Response(AppointmentSerializer(appointments, many=True).data)
+    return Response(
+        AppointmentSerializer(appointments, many=True).data
+    )
+
+
+
+
+@api_view(['GET'])
+def search_patients(request):
+    query=request.GET.get("q")
+
+    if not query:
+        return Response([])
+    
+    patients=Patient.objects.filter(
+        Q(name__icontains=query) | Q(phone__icontains=query)
+    )
+
+    data=[
+        {
+            "id":p.id,
+            "name":p.name,
+            "phone":p.phone,
+            "email":p.email,
+            "age":p.age,
+            "gender":p.gender
+        }
+        for p in patients
+    ]
+    return Response(data)
+
 
 
 

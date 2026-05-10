@@ -3,8 +3,8 @@ import API from "../api/api";
 export const bookAppointments = (data) =>
   API.post("/appointments/book/",data);
 
-export const getAppointments = () =>
-  API.get("/appointments/");
+export const getAppointments = (params) =>
+  API.get("/appointments/",{params});
 
 export const cancelAppointment = (id) =>
   API.post(`/appointments/cancel/${id}/`);
@@ -38,20 +38,17 @@ export const deleteSpecialization = (id) =>
   API.delete(`/specializations/${id}/delete/`);
 
 export const markArrived = (id) =>
-  API.post(`appointment/arrived/${id}/`);
+  API.post(`/appointment/arrived/${id}/`);
 
 export const markNoShow = (id) =>
-  API.post(`appointment/mark-no-show/${id}/`)
+  API.post(`/appointment/mark-no-show/${id}/`)
+
+
+export const searchPatients = (value) =>
+  API.get(`/patients/search/?q=${value}`);
 
 
 
-
-
-// export const createDoctor = (data) =>
-//   API.post(`/doctors/create/`,data);
-
-// export const createDoctorUser = (data) =>
-//   API.post(`doctors/create-user/`,data);
 
 
 

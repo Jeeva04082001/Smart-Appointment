@@ -155,8 +155,9 @@ function Appointments() {
           <button
             disabled={
               !nextAppt ||
-              nextAppt.status !== "ARRIVED" ||
-              (nextTime && nextTime > now)
+              nextAppt.status !== "ARRIVED" 
+              // ||
+              // (nextTime && nextTime > now)
             }
             onClick={() => {
               if (nextAppt.status !== "ARRIVED") {
@@ -164,10 +165,10 @@ function Appointments() {
                 return;
               }
 
-              if (nextTime > now) {
-                alert("⏳ Queue not started yet");
-                return;
-              }
+              // if (nextTime > now) {
+              //   alert("⏳ Queue not started yet");
+              //   return;
+              // }
 
               navigate(`/queue?doctor=${nextAppt.doctor}&token=${nextAppt.token_number}&name=${nextAppt.doctor_name}`);
             }}
@@ -256,7 +257,8 @@ function Appointments() {
                   {/* TRACK */}
                   {appt.status === "BOOKED" && (
                     <button
-                      disabled={appt.status !== "ARRIVED" || apptTime > appNow}
+                      disabled={appt.status !== "ARRIVED" }
+                      // disabled={appt.status !== "ARRIVED" || apptTime > appNow}
                       onClick={() => {
 
                         if (appt.status !== "ARRIVED") {

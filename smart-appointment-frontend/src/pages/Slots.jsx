@@ -790,12 +790,24 @@ const Slots = () => {
                     const isBooked = slot.available === 0;
                     const booking  = getBookedPatient(slot.time);
 
+                    const now = new Date();
+                    const slotDateTime = new Date(`${date}T${slot.time}:00`);
+                    const isPastTime =
+                      date === new Date().toLocaleDateString("en-CA") &&
+                      slotDateTime < now;
+
                     return (
                       <div
                         key={index}
                         className={`
                           p-4 rounded-xl border-2 text-center
-                          ${isBooked ? "bg-red-100 border-red-300" : "bg-green-100 border-green-300"}
+                          ${
+                            isBooked
+                              ? "bg-red-100 border-red-300"
+                              : isPastTime
+                              ? "bg-gray-200 border-gray-300 opacity-70"
+                              : "bg-green-100 border-green-300"
+                          }
                         `}
                       >
                         <div className="text-xl font-bold">{slot.time}</div>
@@ -817,17 +829,30 @@ const Slots = () => {
                               </p>
                             </div>
                           </>
-                        ) : (
-                          <>
-                            <p className="text-green-600 text-sm font-semibold">Available</p>
+                        ) : isPastTime ? (
+                            <>
+                              <p className="text-gray-600 text-sm font-semibold">
+                                Time Expired
+                              </p>
 
-                            <button
-                              className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded"
-                              onClick={() => handleBooking(slot.time)}
-                            >
-                              Book
-                            </button>
-                          </>
+                              <button
+                                disabled
+                                className="mt-3 w-full bg-gray-400 text-white py-1 rounded cursor-not-allowed"
+                              >
+                                Expired
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-green-600 text-sm font-semibold">Available</p>
+
+                              <button
+                                className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-1 rounded"
+                                onClick={() => handleBooking(slot.time)}
+                              >
+                                Book
+                              </button>
+                            </>
                         )}
                       </div>
                     );

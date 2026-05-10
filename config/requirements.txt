@@ -11,3 +11,14 @@ twilio
 celery 
 redis 
 django-celery-beat
+google-genai
+fastapi
+uvicorn
+
+
+
+
+
+
+
+

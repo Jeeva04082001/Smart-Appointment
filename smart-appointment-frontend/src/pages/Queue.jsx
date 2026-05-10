@@ -146,7 +146,7 @@ function Queue() {
   // 🔥 INITIAL FETCH (IMPORTANT)
   useEffect(() => {
 
-    if (!doctorId) return; // 🔥 STOP NULL CALL
+    if (!doctorId) return;
 
     fetchQueue();
 
@@ -159,14 +159,15 @@ function Queue() {
       setQueue(data);
     };
 
-    // ✅ mark page loaded AFTER short delay
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setPageLoaded(true);
     }, 1000);
 
+    return () => {
+      ws.close();
+      clearTimeout(timer);
+    };
 
-
-    return () => ws.close();
   }, [doctorId]);
 
   // const stillInQueue = queue.some(
@@ -278,7 +279,7 @@ function Queue() {
       
       const selected = res.data.find(
         (a) =>
-          a.status === "BOOKED" &&
+          ["BOOKED", "ARRIVED"].includes(a.status) &&
           a.doctor == doctorId &&
           a.token_number == tokenNumber
       );
@@ -308,48 +309,92 @@ function Queue() {
   patientsAhead === 1 && currentToken !== tokenNumber;
 
 
+  // useEffect(() => {
+  //   const interval = setInterval(async () => {
+  //     try {
+  //       const res = await API.get("/appointments/");
+
+  //       const now = new Date();
+
+  //       const next = res.data
+  //         .filter((a) => {
+  //           if (a.status !== "BOOKED") return false;
+  //           const t = new Date(`${a.date}T${a.time_slot}`);
+  //           // return t >= now;
+  //           const today = new Date().toDateString();
+  //           return new Date(a.date).toDateString() === today;
+
+  //         })
+  //         .sort((a, b) => {
+  //           const aTime = new Date(`${a.date}T${a.time_slot}`);
+  //           const bTime = new Date(`${b.date}T${b.time_slot}`);
+  //           return aTime - bTime;
+  //         })[0];
+
+  //       // 🔥 switch automatically
+  //       if (
+  //         next &&
+  //         (next.doctor != doctorId ||
+  //           next.token_number != tokenNumber)
+  //       ) {
+  //         setDoctorId(next.doctor);
+  //         setTokenNumber(next.token_number);
+  //         setDoctorName(next.doctor_name);
+  //         setNotified(false);
+  //         setPreNotified(false);
+  //       }
+
+  //     } catch (err) {
+  //       console.error(err);
+  //     }
+  //   }, 10000); // every 10 sec
+
+  //   return () => clearInterval(interval);
+  // }, [doctorId, tokenNumber]);
+
+
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await API.get("/appointments/");
 
-        const now = new Date();
+    const ws = new WebSocket(
+      "ws://localhost:8011/ws/appointments/"
+    );
 
-        const next = res.data
-          .filter((a) => {
-            if (a.status !== "BOOKED") return false;
-            const t = new Date(`${a.date}T${a.time_slot}`);
-            // return t >= now;
-            const today = new Date().toDateString();
-            return new Date(a.date).toDateString() === today;
+    ws.onmessage = (event) => {
 
-          })
-          .sort((a, b) => {
-            const aTime = new Date(`${a.date}T${a.time_slot}`);
-            const bTime = new Date(`${b.date}T${b.time_slot}`);
-            return aTime - bTime;
-          })[0];
+      const data = JSON.parse(event.data);
 
-        // 🔥 switch automatically
-        if (
-          next &&
-          (next.doctor != doctorId ||
-            next.token_number != tokenNumber)
-        ) {
-          setDoctorId(next.doctor);
-          setTokenNumber(next.token_number);
-          setDoctorName(next.doctor_name);
-          setNotified(false);
-          setPreNotified(false);
-        }
+      console.log("Appointment update:", data);
 
-      } catch (err) {
-        console.error(err);
+      // 🔥 appointment completed
+      if (data.status === "COMPLETED") {
+
+        toast.success("Appointment Completed");
+
+        navigate("/appointments");
       }
-    }, 10000); // every 10 sec
 
-    return () => clearInterval(interval);
-  }, [doctorId, tokenNumber]);
+      // 🔥 switch appointment
+      if (
+        data.doctor !== doctorId ||
+        data.token !== tokenNumber
+      ) {
+
+        setDoctorId(data.doctor);
+
+        setTokenNumber(data.token);
+
+        setDoctorName(data.doctor_name);
+
+        setNotified(false);
+
+        setPreNotified(false);
+      }
+    };
+
+    return () => ws.close();
+
+  }, []);
+
 
 
   useEffect(() => {
@@ -375,7 +420,11 @@ function Queue() {
     if (patientsAhead === 1  && !preNotified) {
       // toast("⏳ Your turn is coming in ~5 minutes");
 
-      toast.success("⏳ Your turn is coming in ~15 minutes", {
+      // toast.success("⏳ Your turn is coming in ~15 minutes", {
+      //   duration: 4000,
+      // });
+
+      toast.success("⏳ Your turn is coming soon", {
         duration: 4000,
       });
 
@@ -383,9 +432,11 @@ function Queue() {
       const audio = new Audio("/bell.mp3");
       audio.play();
 
+      // playBeep();
+
       setPreNotified(true);
 
-      speakToken(tokenNumber, doctorName);
+      // speakToken(tokenNumber, doctorName);
     }
   }, [patientsAhead, preNotified]);
 

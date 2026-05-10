@@ -8,9 +8,12 @@ import {
 import { viewQueue,nextPatient } from "../services/doctorService";
 
 function DoctorQueue() {
+
   const doctorId = localStorage.getItem("doctor_id");
 
   const [queue, setQueue] = useState([]);
+  console.log(doctorId,'doctorId');
+  
 
   console.log(queue,'queue------------');
   
@@ -20,6 +23,8 @@ function DoctorQueue() {
   const [lastEmergencyId, setLastEmergencyId] = useState(null);
 
   useEffect(() => {
+
+    if (!doctorId) return; 
     fetchQueue();
 
     let ws;

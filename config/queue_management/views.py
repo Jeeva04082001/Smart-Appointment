@@ -7,7 +7,7 @@ from django.utils.timezone import now
 from rest_framework.permissions import IsAuthenticated
 from django.utils.timezone import now
 from appointments.views import get_slots_logic
-
+from appointments.utils.websocket import send_appointment_update
 
 @api_view(['GET'])
 def view_queue(request, doctor_id):
@@ -35,70 +35,9 @@ def view_queue(request, doctor_id):
         }
         for q in queue
     ]
-
-    
-
     return Response(data)
 
 
-
-
-# @api_view(['POST'])
-# def next_patient(request, doctor_id):
-
-#     # remove current serving
-#     Queue.objects.filter(
-#         appointment__doctor_id=doctor_id,
-#         is_serving=True
-#     ).update(is_serving=False)
-
-#     # get next patient
-#     next_q = Queue.objects.filter(
-#         appointment__doctor_id=doctor_id,
-#         appointment__status='BOOKED'
-#     ).order_by('-is_emergency', 'token_number').first()
-
-#     if not next_q:
-#         return Response({"message": "No patients in queue"})
-
-#     next_q.is_serving = True
-#     next_q.save()
-
-#     # 🔥 GET FULL UPDATED QUEUE
-#     queue = Queue.objects.filter(
-#         appointment__doctor_id=doctor_id,
-#         appointment__status='BOOKED'
-#     ).order_by('-is_emergency', 'token_number')
-
-#     data = [
-#         {
-#             "id": q.id,
-#             "token": q.token_number,
-#             "patient": q.appointment.patient_name or (
-#                 str(q.appointment.patient) if q.appointment.patient else "Guest"
-#             ),
-#             "is_serving": q.is_serving,
-#             "is_emergency": q.is_emergency,
-#             "appointment_id": q.appointment.id
-#         }
-#         for q in queue
-#     ]
-
-#     # 🔥 SEND FULL QUEUE
-#     channel_layer = get_channel_layer()
-
-#     async_to_sync(channel_layer.group_send)(
-#         f'queue_{doctor_id}',
-#         {
-#             "type": "send_queue_update",
-#             "data": data
-#         }
-#     )
-
-#     return Response({
-#         "message": "Now serving",
-#         "token": next_q.token_number
-#     })
 
 
 
@@ -137,8 +76,12 @@ def next_patient(request, doctor_id):
 
     next_q.is_serving = True
     next_q.appointment.status = "IN_CONSULTATION"
+    next_q.appointment.is_serving = True
     next_q.appointment.save()
+    send_appointment_update(next_q.appointment)
+
     next_q.save()
+
 
     # 🔥 SEND UPDATED QUEUE
     queue = Queue.objects.filter(
@@ -197,6 +140,7 @@ def mark_emergency(request, pk):
         return Response({"error": "Not found"}, status=404)
 
     queue.is_emergency = True
+    queue.appointment.is_emergency = True
     queue.save()
 
     doctor_id = queue.appointment.doctor.id

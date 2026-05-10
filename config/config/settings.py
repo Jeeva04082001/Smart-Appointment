@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'channels',
     'django_crontab',
+    "drf_yasg",
 
     # Local apps
     'accounts',
